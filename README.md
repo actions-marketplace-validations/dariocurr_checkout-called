@@ -9,8 +9,9 @@ since evidently there is not enough [dogfeeding](https://en.wikipedia.org/wiki/E
 I created `checkout-called` to simplify checking out the called repository in your [reusable workflows](https://docs.github.com/en/actions/sharing-automations/reusing-workflows)
 
 ## Usage
+> On github.com, this action can use `job.workflow_*` contexts. OIDC may be skippable.
 
-> This action requires `id-token: write` permissions
+> This action may need `id-token: write` on GHES. No OIDC needed on github.com.
 
 To use this action in your called workflows and check out the repository automatically, add the following lines:
 
@@ -24,6 +25,29 @@ This action mirrors the arguments of [`actions/checkout`](https://github.com/act
 For example, if you call: `user/repository/.github/workflows/workflow.yml@branch`, it will checkout the `user/repository` repository using `branch` as reference
 
 > This repository is committed to maintaining compatibility and same version as [`actions/checkout`](https://github.com/actions/checkout)
+
+## Limitations
+On github.com, action uses `job.workflow_repository` and `job.workflow_sha` contexts when available.
+On GHES, action falls back to OIDC `job_workflow_ref` claim parsing.
+
+On GHES, these `job.workflow_*` contexts are not available.
+In that case, action uses OIDC token (`ACTIONS_ID_TOKEN_REQUEST_TOKEN`) to read
+the `job_workflow_ref` claim and derive called repository and ref.
+
+GitHub does **not** mint an OIDC token for workflows triggered by
+[`pull_request` from a forked repository](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect),
+so this fallback cannot work there.
+As a result, on GHES this action exits with a clear error.
+
+Possible workarounds (need to be tested properly):
+
+- Use [`pull_request_target`](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target)
+  instead of `pull_request`, with the usual fork-safety caveats — do not check
+  out untrusted PR code with elevated permissions.
+- Use [`workflow_run`](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#workflow_run)
+  to react to fork PR builds from the upstream repository's context.
+
+See [#54](https://github.com/dariocurr/checkout-called/issues/54) for context.
 
 ## Versioning and tags
 
